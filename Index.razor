@@ -1,0 +1,270 @@
+﻿@page "/"
+@using System;
+@using Newtonsoft.Json;
+@using System.Collections.Generic;
+@using TodoLists.Models;
+@inject HttpClient Http
+
+<style>
+    table {
+        border-collapse: collapse;
+        width: 100%;
+    }
+
+    th, td {
+        text-align: left;
+        padding: 8px;
+    }
+
+    th {
+        background-color: #007bff;
+    }
+</style>
+
+
+<PageTitle>ToDoo</PageTitle>
+<h3>ToDo Management Center</h3>
+@if (todoItems == null)
+{
+    <p>Loading..</p>
+}
+else
+{
+    <div style="display:flex;flex-direction:row">
+        <div style="margin-right: 10px;">
+            <h3>Yapılacaklar</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Description</th>
+                        <th>Status</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in todoItems.Where(t => t.Status == "Todo"))
+                    {
+                        <tr>
+                            <td>@item.Description</td>
+                            <td>@item.Status</td>
+                            <td>
+                                <button class="btn btn-primary btn-sm" @onclick="() => ShowEditForm(item)">Düzenle</button>
+                                <button class="btn btn-danger btn-sm" @onclick="() => DeleteTodoItem(item)">X</button>
+
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+
+        <div style="margin-right: 10px;">
+            <h3>Devam Edenler</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Description</th>
+                        <th>Status</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in todoItems.Where(t => t.Status == "InProgress"))
+                    {
+                        <tr>
+                            <td>@item.Description</td>
+                            <td>@item.Status</td>
+                            <td>
+                                <button class="btn btn-primary btn-sm" @onclick="() => ShowEditForm(item)">Düzenle</button>
+                                <button class="btn btn-danger btn-sm" @onclick="() => DeleteTodoItem(item)">X</button>
+
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div>
+            <h3>Yapılanlar</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Description</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in todoItems.Where(t => t.Status == "Done"))
+                    {
+                        <tr>
+                            <td>@item.Description</td>
+                            <td>@item.Status</td>
+                            <td>
+                                <button class="btn btn-primary btn-sm" @onclick="() => ShowEditForm(item)">Düzenle</button>
+                                <button class="btn btn-danger btn-sm" @onclick="() => DeleteTodoItem(item)">X</button>
+
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <EditForm Model="@newTodoItem" OnValidSubmit="@AddTodoItem">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+        <div class="row">
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="description">Description:</label>
+                    <InputText class="form-control" id="description" @bind-Value="@newTodoItem.Description" />
+                </div>
+                <div class="form-group">
+                    <label for="status">Status:</label>
+                    <InputSelect class="form-control" id="status" @bind-Value="@newTodoItem.Status">
+                        <option>Seç</option>
+                        <option value="Todo">To Do</option>
+                        <option value="InProgress">In Progress</option>
+                        <option value="Done">Done</option>
+                    </InputSelect>
+                </div>
+                <hr>
+                <button type="submit" class="btn btn-primary">Add Todo Item</button>
+            </div>
+        </div>
+    </EditForm>
+    @if (showEditForm)
+    {
+        <div class="modal fade show" style="display:block" tabindex="-1" role="dialog" aria-labelledby="edit-form-modal" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="edit-form-modal">Todo Öğesi Düzenle</h5>
+                        <button type="button" class="close" @onclick="() => showEditForm = false" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <EditForm Model="@selectedTodoItem" OnValidSubmit="@EditTodoItem">
+                            <ValidationSummary />
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="description">Description:</label>
+                                        <InputText class="form-control" id="description" @bind-Value="@selectedTodoItem.Description" />
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="status">Status:</label>
+                                        <InputSelect class="form-control" id="status" @bind-Value="@selectedTodoItem.Status">
+                                            <option>Seç</option>
+                                            <option value="Todo">To Do</option>
+                                            <option value="InProgress">In Progress</option>
+                                            <option value="Done">Done</option>
+                                        </InputSelect>
+                                    </div>
+                                    <hr />
+                                    <button type="submit" class="btn btn-primary">Update</button>
+                                </div>
+                            </div>
+                        </EditForm>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+
+
+}
+
+@code{
+
+
+    private List<TodoItem> todoItems = new List<TodoItem>();
+    //veriler yükleniyor
+
+    protected override async Task OnInitializedAsync()
+    {
+        var items = await Http.GetFromJsonAsync<List<TodoItem>>("veriler/todolist.json");
+        todoItems = items ?? new List<TodoItem>();
+    }
+
+    private TodoItem newTodoItem = new TodoItem();
+
+    private void AddTodoItem()
+    {
+        // Id'si otomatik olarak atanacak
+        int newId = todoItems.Any() ? todoItems.Max(t => t.Id) + 1 : 1;
+        newTodoItem.Id = newId;
+
+        // Yeni todo öğesini todoItems listesine ekleyin
+        todoItems.Add(newTodoItem);
+
+        // Form alanlarını temizleyin
+        newTodoItem = new TodoItem();
+
+        try
+        {
+            string json = JsonConvert.SerializeObject(todoItems);
+
+            File.WriteAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "veriler/todolist.json"), json);
+            Console.WriteLine(json);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Hata oluştu: " + ex.Message);
+        }
+
+
+
+
+        // Yeni Todo öğesi eklendikten sonra, form sıfırlanır.
+        newTodoItem = new TodoItem();
+    }
+
+    private void DeleteTodoItem(TodoItem item)
+    {
+        todoItems.Remove(item);
+
+        try
+        {
+            string json = JsonConvert.SerializeObject(todoItems);
+            File.WriteAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "veriler/todolist.json"), json);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Hata oluştu: " + ex.Message);
+        }
+    }
+
+    private TodoItem selectedTodoItem;
+    private bool showEditForm = false;
+
+    private void ShowEditForm(TodoItem item)
+    {
+        selectedTodoItem = item;
+        showEditForm = true;
+
+
+    }
+
+    private void EditTodoItem()
+    {
+        try
+        {
+            string json = JsonConvert.SerializeObject(todoItems);
+            File.WriteAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "veriler/todolist.json"), json);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Hata oluştu: " + ex.Message);
+        }
+        showEditForm = false;
+    }
+
+
+
+}
